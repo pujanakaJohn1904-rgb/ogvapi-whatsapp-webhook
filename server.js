@@ -202,13 +202,12 @@ app.post('/vapi-webhook', async (req, res) => {
       });
     }
 
-    const recipientPhone = process.env.FLEET_OWNER_PHONE;
-    if (!recipientPhone) {
-      log('error', 'missing_fleet_owner_phone', { toolCallId });
-      return res.status(200).json({
-        results: [{ toolCallId, result: 'FLEET_OWNER_PHONE not configured' }]
-      });
-    }
+    // ============================================================
+    // DEMO MODE — caller ka number hi owner hai
+    // Production mein yeh line replace karo:
+    // const recipientPhone = process.env.FLEET_OWNER_PHONE;
+    // ============================================================
+    const recipientPhone = cleanPhone;
 
     const templateName = getTemplateName(serviceType);
     log('info', 'whatsapp_sending', {
