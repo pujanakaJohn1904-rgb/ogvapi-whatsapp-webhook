@@ -144,28 +144,36 @@ app.post('/vapi-webhook', async (req, res) => {
     }
 
     let data = {};
-  try {
-    data = typeof toolCallArgs === 'string' ? JSON.parse(toolCallArgs) : (toolCallArgs || {});
-  } catch (parseErr) {
-    log('error', 'json_parse_failed', { toolCallId, rawArgs: String(toolCallArgs).substring(0, 200) });
-    return res.status(200).json({
-      results: [{ toolCallId, result: 'Failed to parse function parameters. Please repeat the details.' }]
-    });
-  }
-    const { serviceType, driverName, issueDescription, location, driverPhone } = data || {};
-
-    // Validate fields with minimum length checks
-    const missingFields = [];
-    if (!driverName || String(driverName).trim().length < 2) {
-      missingFields.push('driverName');
+    try {
+      data = typeof toolCallArgs === 'string' ? JSON.parse(toolCallArgs) : (toolCallArgs || {});
+    } catch (parseErr) {
+      log('error', 'json_parse_failed', { toolCallId, rawArgs: String(toolCallArgs).substring(0, 200) });
+      return res.status(200).json({
+        results: [{ toolCallId, result: 'Failed to parse function parameters. Please repeat the details.' }]
+      });
     }
+    const { serviceType, driverName: rawDriverName, issueDescription, location, driverPhone: rawDriverPhone } = data || {};
+
+    // ============================================================
+    // SMART HYBRID FALLBACK (Caller ID + Defaults)
+    // 1. Phone: Tool arg -> Vapi Caller ID -> Fleet Owner Phone (for browser test)
+    // 2. Name: Tool arg -> "Driver"
+    // ============================================================
+    const vapiCallerId = payload.message?.call?.customer?.number;
+    const candidatePhone = rawDriverPhone || vapiCallerId || process.env.FLEET_OWNER_PHONE;
+    const driverName = (rawDriverName && String(rawDriverName).trim().length >= 2) 
+      ? String(rawDriverName).trim() 
+      : 'Driver';
+
+    // Validate fields
+    const missingFields = [];
     if (!issueDescription || String(issueDescription).trim().length < 5) {
       missingFields.push('issueDescription');
     }
     if (!location || String(location).trim().length < 3) {
       missingFields.push('location');
     }
-    if (!driverPhone || String(driverPhone).replace(/\D/g, '').length < 10) {
+    if (!candidatePhone || String(candidatePhone).replace(/\D/g, '').length < 10) {
       missingFields.push('driverPhone');
     }
 
@@ -180,9 +188,9 @@ app.post('/vapi-webhook', async (req, res) => {
     }
 
     // Validate phone number (E.164)
-    const cleanPhone = validatePhone(driverPhone);
+    const cleanPhone = validatePhone(candidatePhone);
     if (!cleanPhone) {
-      log('error', 'invalid_phone', { toolCallId, driverPhone });
+      log('error', 'invalid_phone', { toolCallId, candidatePhone });
       return res.status(200).json({
         results: [{
           toolCallId,
@@ -203,9 +211,7 @@ app.post('/vapi-webhook', async (req, res) => {
     }
 
     // ============================================================
-    // DEMO MODE — caller ka number hi owner hai
-    // Production mein yeh line replace karo:
-    // const recipientPhone = process.env.FLEET_OWNER_PHONE;
+    // DEMO MODE — caller ka number hi owner hai (WhatsApp recipient)
     // ============================================================
     const recipientPhone = cleanPhone;
 
