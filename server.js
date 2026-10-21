@@ -211,15 +211,16 @@ app.post('/vapi-webhook', async (req, res) => {
     }
 
     // ============================================================
-    // DEMO MODE — caller ka number hi owner hai (WhatsApp recipient)
+    // TESTING OVERRIDE:
+    // Call chahe US number se ho, WhatsApp dono tere Indian phone (FLEET_OWNER_PHONE) pe aayenge!
     // ============================================================
-    const recipientPhone = cleanPhone;
+    const recipientPhone = process.env.FLEET_OWNER_PHONE || cleanPhone;
 
     const templateName = getTemplateName(serviceType);
     log('info', 'whatsapp_sending', {
       toolCallId,
       driverName,
-      driverPhone: cleanPhone,
+      driverPhone: recipientPhone,
       location,
       templateName,
     });
@@ -259,14 +260,14 @@ app.post('/vapi-webhook', async (req, res) => {
       // ✅ Store ticket for ACCEPT/REJECT handling
       if (telnyxResponse.data?.id) {
         storeTicket(telnyxResponse.data.id, {
-          customerPhone: cleanPhone,
+          customerPhone: recipientPhone,
           customerName: driverName,
           issue: issueDescription,
           location: location,
         });
         log('info', 'ticket_stored', {
           messageId: telnyxResponse.data.id,
-          customerPhone: cleanPhone,
+          customerPhone: recipientPhone,
         });
       }
 
