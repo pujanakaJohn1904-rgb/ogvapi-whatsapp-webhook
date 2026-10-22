@@ -321,9 +321,14 @@ app.post('/telnyx-webhook', async (req, res) => {
 
     if (eventType === 'message.received') {
       const message = payload.data.payload;
-      const from = message?.from?.phone_number;
-      const buttonText = message?.whatsapp_message?.button?.text;
-      const originalMessageId = message?.whatsapp_message?.context?.id;
+      const from = message?.from?.phone_number || (typeof message?.from === 'string' ? message?.from : null);
+      const buttonText = message?.body?.button?.text || 
+                         message?.body?.button?.payload || 
+                         message?.whatsapp_message?.button?.text || 
+                         message?.text;
+      const originalMessageId = message?.body?.context?.id || 
+                                message?.context?.id || 
+                                message?.whatsapp_message?.context?.id;
 
       log('info', 'whatsapp_button_clicked', {
         from,
